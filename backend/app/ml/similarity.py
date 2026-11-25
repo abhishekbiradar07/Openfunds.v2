@@ -1,72 +1,50 @@
 try:
     import pandas as pd
-    from sentence_transformers import SentenceTransformer, util
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
     SIMILARITY_AVAILABLE = True
 except ImportError:
     SIMILARITY_AVAILABLE = False
     print("⚠️ Similarity libraries not available")
-    
+
 import logging
 
 logger = logging.getLogger(__name__)
 
 
 class SimilarityEngine:
-    """Semantic similarity engine for finding duplicate campaigns"""
-    
-    _model = None
-    MODEL_NAME = 'all-MiniLM-L6-v2'
-    
-    @classmethod
-    def _load_model(cls):
-        """Lazy load sentence transformer model"""
-        if cls._model is None:
-            try:
-                cls._model = SentenceTransformer(cls.MODEL_NAME)
-                logger.info(f"✓ Sentence Transformer model '{cls.MODEL_NAME}' loaded")
-            except Exception as e:
-                logger.error(f"Error loading model: {e}")
-                cls._model = None
-        return cls._model
-    
+    """TF-IDF cosine similarity engine for finding duplicate campaigns"""
+
     @classmethod
     def find_similar(cls, title, description, campaigns_data, top_k=3, threshold=0.3):
-        """Find similar campaigns using semantic similarity"""
+        """Find similar campaigns using TF-IDF cosine similarity"""
         if not SIMILARITY_AVAILABLE:
             return {
                 'success': False,
                 'error': 'Similarity libraries not installed'
             }
-            
+
         try:
-            model = cls._load_model()
-            
-            if model is None:
-                return {
-                    'success': False,
-                    'error': 'Similarity model not loaded'
-                }
-            
             if not campaigns_data or len(campaigns_data) == 0:
                 return {
                     'success': True,
-                    'similar_campaigns': []
+                    'similar_campaigns': [],
+                    'count': 0
                 }
-            
-            # Prepare data
+
             df = pd.DataFrame(campaigns_data)
             df['text'] = df['title'].astype(str) + " " + df['description'].astype(str)
             input_text = title + " " + description
-            
-            # Encode
-            corpus_embeddings = model.encode(df['text'].tolist(), convert_to_tensor=True)
-            input_embedding = model.encode(input_text, convert_to_tensor=True)
-            
-            # Compute similarity
-            cos_scores = util.pytorch_cos_sim(input_embedding, corpus_embeddings)[0]
-            scores = cos_scores.cpu().tolist()
-            
-            # Build results
+
+            corpus = df['text'].tolist()
+            all_texts = [input_text] + corpus
+
+            vectorizer = TfidfVectorizer(stop_words='english', min_df=1)
+            tfidf_matrix = vectorizer.fit_transform(all_texts)
+
+            # Compare input (index 0) against all corpus entries
+            scores = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:])[0]
+
             results = []
             for idx, score in enumerate(scores):
                 if score > threshold:
@@ -78,16 +56,15 @@ class SimilarityEngine:
                         'score': float(score),
                         'match_percentage': round(float(score) * 100, 2)
                     })
-            
-            # Sort by score and limit
+
             results = sorted(results, key=lambda x: x['score'], reverse=True)[:top_k]
-            
+
             return {
                 'success': True,
                 'similar_campaigns': results,
                 'count': len(results)
             }
-            
+
         except Exception as e:
             logger.error(f"Error in similarity search: {e}")
             return {
