@@ -12,8 +12,14 @@ class Config:
     
     # Database
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-    DB_PATH = os.path.join(os.path.dirname(BASE_DIR), 'data', 'openfunds.db')
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', f'sqlite:///{DB_PATH}')
+    _data_dir = os.path.join(os.path.dirname(BASE_DIR), 'data')
+    # Fall back to /tmp if the data dir is not writable (e.g. Render free tier)
+    _default_db = (
+        f'sqlite:///{os.path.join(_data_dir, "openfunds.db")}'
+        if os.access(os.path.dirname(_data_dir) or '.', os.W_OK)
+        else 'sqlite:////tmp/openfunds.db'
+    )
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', _default_db)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,

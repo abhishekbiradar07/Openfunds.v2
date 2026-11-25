@@ -16,7 +16,7 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///data/openfunds.db
+        value: sqlite:////tmp/openfunds.db
       - key: FRONTEND_URL
         value: https://openfunds.streamlit.app
     healthCheckPath: /api/v1/health
