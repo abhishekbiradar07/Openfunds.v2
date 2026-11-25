@@ -3,7 +3,30 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from app.config import get_config
 from app.database import init_db
+import re
 import logging
+
+
+def _build_cors_origins(frontend_url: str) -> list:
+    """Build the list of allowed CORS origins.
+
+    Always includes localhost for local development.  If the configured
+    FRONTEND_URL contains a wildcard (e.g. ``https://*.streamlit.app``) the
+    matching is done via a compiled regex so Flask-CORS can evaluate it at
+    request time.
+    """
+    origins = [
+        "http://localhost:8501",
+        "http://127.0.0.1:8501",
+    ]
+    if frontend_url and frontend_url not in origins:
+        if "*" in frontend_url:
+            # Convert glob-style wildcard to a regex pattern
+            pattern = re.escape(frontend_url).replace(r"\*", r"[^.]+")
+            origins.append(re.compile(pattern))
+        else:
+            origins.append(frontend_url)
+    return origins
 
 
 def create_app():
@@ -20,11 +43,13 @@ def create_app():
     )
     
     # Initialize extensions
+    allowed_origins = _build_cors_origins(app.config.get("FRONTEND_URL", ""))
     CORS(app, resources={
         r"/api/*": {
-            "origins": app.config['FRONTEND_URL'],
+            "origins": allowed_origins,
             "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"]
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": False,
         }
     })
     
