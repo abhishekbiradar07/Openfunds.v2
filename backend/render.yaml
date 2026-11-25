@@ -7,6 +7,8 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app.main:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: FLASK_ENV
         value: production
       - key: SECRET_KEY
@@ -14,15 +16,7 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: openfunds-db
-          property: connectionString
+        value: sqlite:///data/openfunds.db
       - key: FRONTEND_URL
         value: https://openfunds.streamlit.app
     healthCheckPath: /api/v1/health
-
-databases:
-  - name: openfunds-db
-    databaseName: openfunds
-    user: openfunds_user
-    plan: free
