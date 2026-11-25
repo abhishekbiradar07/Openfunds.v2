@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # API Configuration
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:5000/api/v1')
+API_BASE_URL = os.getenv('API_BASE_URL', 'https://openfunds-v2-api.onrender.com/api/v1')
 
 # App Configuration
 APP_TITLE = "OpenFunds"
